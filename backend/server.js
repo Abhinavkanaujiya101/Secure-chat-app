@@ -132,7 +132,7 @@ io.on('connection', (socket) => {
   });
   
   // Handle messages
-  socket.on('send-message', ({ text }) => {
+  socket.on('send-message', ({ text, fileData }) => {
     const code = socket.roomCode;
     const username = socket.username;
     
@@ -141,7 +141,8 @@ io.on('connection', (socket) => {
       return;
     }
     
-    if (!text || text.trim().length === 0) return;
+    // Check if either text is present or a file is being sent
+    if ((!text || text.trim().length === 0) && !fileData) return;
     
     const room = rooms[code];
     if (!room) return;
@@ -149,10 +150,11 @@ io.on('connection', (socket) => {
     // Create message object
     const message = {
       id: Date.now(),
-      text: text.trim(),
+      text: text ? text.trim() : '',
       username: username,
       timestamp: new Date().toISOString(),
-      type: 'chat'
+      type: fileData ? 'file' : 'chat',
+      fileData: fileData || null
     };
     
     // Store message
@@ -166,7 +168,11 @@ io.on('connection', (socket) => {
     // Broadcast to everyone in the room (including sender)
     io.to(code).emit('new-message', message);
     
-    console.log(`Message from ${username} in ${code}: ${text.substring(0, 50)}...`);
+    if (fileData) {
+      console.log(`File message from ${username} in ${code}: ${fileData.name} (${fileData.type})`);
+    } else {
+      console.log(`Message from ${username} in ${code}: ${text.substring(0, 50)}...`);
+    }
   });
   
   // Typing indicator

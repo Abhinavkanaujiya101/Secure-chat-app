@@ -1,8 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`;
 const socket = io(BACKEND_URL);
+
+const isSameUser = (name1, name2) => {
+  if (!name1 || !name2) return false;
+  return name1.trim().toLowerCase() === name2.trim().toLowerCase();
+};
+
+const EMOJI_CATEGORIES = {
+  'Smileys': ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🫣', '🤭', '🫢', '🫡', '🤫', '🫠', '🤥', '😶', '🫥', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '😵‍💫', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕'],
+  'Gestures': ['👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🫱', '🫲', '🫵'],
+  'Hearts': ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
+  'Food/Activities': ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥗', '🍲', '🍜', '🍣', '🍱', '🥟', '🍤', '🍙', '🍨', '🍩', '🍪', '🎂', '🍫', '🍬', '🍺', '🍻', '🥂', '🍷', '🥃', '☕', '🥤', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🏓', '🏸', '🥋', '🥊', '🎯', '🎮', '🕹️', '🎰'],
+  'Objects/Travel': ['💡', '🔑', '🔒', '🔓', '🔍', '📱', '💻', '🖥️', '⌨️', '🖱️', '📷', '📹', '📺', '📻', '🎙️', '⏳', '⌚', '⏰', '🚀', '🚗', '🚕', '🚙', '🚌', '🏎️', '🚓', '🚑', '🚒', '🚲', '🛵', '🏍️', '🛩️', '✈️', '⛵', '🗺️', '🧭', '🎇', '🎆', '🎈', '🎉', '🎊']
+};
+
+const CATEGORY_ICONS = {
+  'Smileys': '😀',
+  'Gestures': '👍',
+  'Hearts': '❤️',
+  'Food/Activities': '🍔',
+  'Objects/Travel': '💡'
+};
 
 function App() {
   const [view, setView] = useState('home'); // home, create, join, waiting, chat
@@ -15,9 +36,12 @@ function App() {
   const [error, setError] = useState('');
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeEmojiCategory, setActiveEmojiCategory] = useState('Smileys');
 
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Auto-scroll to bottom of chat
   const scrollToBottom = () => {
@@ -34,7 +58,7 @@ function App() {
   useEffect(() => {
     socket.on('user-joined', (data) => {
       console.log('user-joined:', data);
-      if (data.username !== username) {
+      if (!isSameUser(data.username, username)) {
         setOtherUser(data.username);
         setView('chat');
         
@@ -54,7 +78,7 @@ function App() {
 
     socket.on('chat-ready', (data) => {
       console.log('chat-ready:', data);
-      const partner = data.users.find(u => u !== username);
+      const partner = data.users.find(u => !isSameUser(u, username));
       if (partner) {
         setOtherUser(partner);
       }
@@ -104,7 +128,7 @@ function App() {
     });
 
     socket.on('user-typing', (data) => {
-      if (data.username !== username) {
+      if (!isSameUser(data.username, username)) {
         setPartnerIsTyping(data.isTyping);
       }
     });
@@ -191,6 +215,7 @@ function App() {
       socket.emit('send-message', { text: input.trim() });
       socket.emit('typing', false);
       setInput('');
+      setShowEmojiPicker(false);
     }
   };
 
@@ -209,6 +234,50 @@ function App() {
     }, 1500);
   };
 
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size limit: 2MB (2 * 1024 * 1024 bytes)
+    const MAX_SIZE = 2 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setError('File is too large. Max size allowed is 2MB.');
+      setTimeout(() => setError(''), 5000);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result;
+      
+      // Emit file payload
+      socket.emit('send-message', {
+        text: file.name,
+        fileData: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: base64Data
+        }
+      });
+    };
+    reader.onerror = () => {
+      setError('Error reading file.');
+    };
+    reader.readAsDataURL(file);
+
+    // Clear input selection
+    e.target.value = null;
+  };
+
+  const handleEmojiClick = (emoji) => {
+    setInput(prev => prev + emoji);
+  };
+
   const leaveChat = () => {
     socket.disconnect();
     socket.connect();
@@ -218,6 +287,7 @@ function App() {
     setOtherUser('');
     setInput('');
     setPartnerIsTyping(false);
+    setShowEmojiPicker(false);
   };
 
   const copyCode = () => {
@@ -395,6 +465,7 @@ function App() {
           
           {/* Messages */}
           <div className="chat-messages">
+            {error && <div className="error-banner">{error}</div>}
             {messages.map((msg) => {
               if (msg.type === 'system' || msg.username === 'System') {
                 return (
@@ -403,7 +474,18 @@ function App() {
                   </div>
                 );
               }
-              const isMe = msg.username === username;
+              const isMe = isSameUser(msg.username, username);
+              
+              // Helper to format file size
+              const formatFileSize = (bytes) => {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const dm = 1;
+                const sizes = ['Bytes', 'KB', 'MB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+              };
+
               return (
                 <div
                   key={msg.id}
@@ -412,7 +494,46 @@ function App() {
                   <div className="bubble-sender">
                     {isMe ? 'You' : msg.username}
                   </div>
-                  <div>{msg.text}</div>
+                  
+                  {msg.type === 'file' && msg.fileData ? (
+                    msg.fileData.type.startsWith('image/') ? (
+                      <div>
+                        <a href={msg.fileData.data} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={msg.fileData.data}
+                            alt={msg.fileData.name}
+                            className="chat-image-preview"
+                          />
+                        </a>
+                        <div style={{ marginTop: '6px', fontSize: '12px', opacity: 0.8, fontStyle: 'italic' }}>
+                          📸 {msg.fileData.name} ({formatFileSize(msg.fileData.size)})
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="file-attachment-card">
+                        <div className="file-icon">📄</div>
+                        <div className="file-info">
+                          <div className="file-name" title={msg.fileData.name}>
+                            {msg.fileData.name}
+                          </div>
+                          <div className="file-size">
+                            {formatFileSize(msg.fileData.size)}
+                          </div>
+                        </div>
+                        <a
+                          href={msg.fileData.data}
+                          download={msg.fileData.name}
+                          className="file-download-link"
+                          title="Download file"
+                        >
+                          ⬇️
+                        </a>
+                      </div>
+                    )
+                  ) : (
+                    <div>{msg.text}</div>
+                  )}
+
                   <div className="bubble-time">
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -434,14 +555,66 @@ function App() {
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Input */}
-          <div className="chat-input-bar">
+          {/* Input Bar */}
+          <div className="chat-input-bar" style={{ position: 'relative' }}>
+            {showEmojiPicker && (
+              <div className="emoji-popover">
+                <div className="emoji-categories-bar">
+                  {Object.keys(EMOJI_CATEGORIES).map(cat => (
+                    <button
+                      key={cat}
+                      className={`category-tab ${activeEmojiCategory === cat ? 'active' : ''}`}
+                      onClick={() => setActiveEmojiCategory(cat)}
+                      title={cat}
+                    >
+                      {CATEGORY_ICONS[cat]}
+                    </button>
+                  ))}
+                </div>
+                <div className="emoji-grid">
+                  {EMOJI_CATEGORIES[activeEmojiCategory].map(emoji => (
+                    <button
+                      key={emoji}
+                      className="emoji-item"
+                      onClick={() => handleEmojiClick(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              className="icon-btn"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              title="Add emoji"
+            >
+              😀
+            </button>
+
+            <button
+              className="icon-btn"
+              onClick={triggerFileSelect}
+              title="Attach file (Max 2MB)"
+            >
+              📎
+            </button>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+
             <input
               className="chat-input-field"
               placeholder="Type a message..."
               value={input}
               onChange={handleInputChange}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              onClick={() => setShowEmojiPicker(false)}
             />
             <button className="send-btn" onClick={sendMessage}>
               Send
