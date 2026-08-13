@@ -242,10 +242,10 @@ function App() {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Check size limit: 2MB (2 * 1024 * 1024 bytes)
-    const MAX_SIZE = 2 * 1024 * 1024;
+    // Check size limit: 5MB (5 * 1024 * 1024 bytes)
+    const MAX_SIZE = 5 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      setError('File is too large. Max size allowed is 2MB.');
+      setError('File is too large. Max size allowed is 5MB.');
       setTimeout(() => setError(''), 5000);
       return;
     }
@@ -596,7 +596,7 @@ function App() {
             <button
               className="icon-btn"
               onClick={triggerFileSelect}
-              title="Attach file (Max 2MB)"
+              title="Attach file (Max 5MB)"
             >
               📎
             </button>

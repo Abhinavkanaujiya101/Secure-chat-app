@@ -9,11 +9,13 @@ const io = socketio(server, {
   cors: {
     origin: "*",  // Allow all origins
     methods: ["GET", "POST"]
-  }
+  },
+  maxHttpBufferSize: 1e7 // 10MB limit to support image and file attachments
 });
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Store rooms in memory
 const rooms = {};
