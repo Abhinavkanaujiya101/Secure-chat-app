@@ -14,7 +14,7 @@ A real-time chat application built with a Node.js backend and a React/Frontend i
 * **Communication:** Socket.io
 * **Email Service:** Nodemailer (Gmail SMTP)
 
-## 📦 Installation & Setup
+## 📦 Installation & Setup 
 
 ### 1. Clone the repository
 ```bash
