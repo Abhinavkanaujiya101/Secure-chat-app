@@ -3,6 +3,7 @@
 A real-time chat application built with a Node.js backend and a React/Frontend interface. This project features instant messaging and user authentication.
 
 ## 🚀 Features
+
 * **Real-time Messaging:** Powered by Socket.io for instant communication.
 * **OTP Verification:** Secure login using Gmail SMTP for one-time passwords.
 * **Responsive Design:** Works on both Desktop and Mobile.
