@@ -13,6 +13,7 @@ const io = socketio(server, {
 
     
   },
+  
   maxHttpBufferSize: 1e7 // 10MB limit to support image and file attachments
 });
 
